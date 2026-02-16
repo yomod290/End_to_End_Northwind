@@ -1,0 +1,38 @@
+{
+	"name": "DS_adsl_sink",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_adsl_sink",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"schemaname": {
+				"type": "string"
+			},
+			"tablename": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@{concat(dataset().tablename, '.csv')}",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "@concat(dataset().schemaname,'/',dataset().tablename)",
+					"type": "Expression"
+				},
+				"fileSystem": "bronze"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": []
+	}
+}
