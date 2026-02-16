@@ -83,9 +83,8 @@ jobs:
           armTemplateFile: ARMTemplateForFactory.json
           armTemplateParametersFile: ARMTemplateParametersForFactory.json
           additionalParameters: >
-            factoryName=adfprodnorthwind
-            KeyVault_LS_properties_typeProperties_baseUrl=https://prodonpremisenorthwind.vault.azure.net/
-            LS_adsl_sink_properties_typeProperties_url=https://adlsprodnorthwind.dfs.core.windows.net/
-            LS_adsl_sink_properties_typeProperties_accountKey=${{ secrets.ADLS_PROD_ACCOUNT_KEY }}
-            LS_sql_source_connectVia_referenceName=devOnpremiseSQL
+              factoryName=adfprodnorthwind
+              KeyVault_LS_properties_typeProperties_baseUrl=https://prodonpremisenorthwind.vault.azure.net/
+              LS_adsl_sink_properties_typeProperties_url=https://adlsprodnorthwind.dfs.core.windows.net/
+              LS_adsl_sink_accountKey=${{ secrets.ADLS_PROD_ACCOUNT_KEY }}
 
