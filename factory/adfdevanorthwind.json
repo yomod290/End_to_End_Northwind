@@ -1,0 +1,9 @@
+{
+	"name": "adfdevanorthwind",
+	"location": "brazilsouth",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "e7d9d3e9-225e-490f-affb-76e934ded53e",
+		"tenantId": "51e8d99f-1f43-4472-a851-4c4f247c2158"
+	}
+}
