@@ -1,0 +1,28 @@
+{
+	"name": "LS_sql_source",
+	"properties": {
+		"description": "LS sql para Northwind",
+		"annotations": [],
+		"type": "SqlServer",
+		"typeProperties": {
+			"server": "WIN-LB6LIL0FQ67,1433",
+			"database": "NORTHWND",
+			"encrypt": "optional",
+			"trustServerCertificate": true,
+			"authenticationType": "SQL",
+			"userName": "onpremnorthwind",
+			"password": {
+				"type": "AzureKeyVaultSecret",
+				"store": {
+					"referenceName": "KeyVault_LS",
+					"type": "LinkedServiceReference"
+				},
+				"secretName": "devonpremvault"
+			}
+		},
+		"connectVia": {
+			"referenceName": "devOnpremiseSQL",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}
