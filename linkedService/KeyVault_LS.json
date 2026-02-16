@@ -1,0 +1,10 @@
+{
+	"name": "KeyVault_LS",
+	"properties": {
+		"annotations": [],
+		"type": "AzureKeyVault",
+		"typeProperties": {
+			"baseUrl": "https://devonpremisenorthwind.vault.azure.net/"
+		}
+	}
+}
