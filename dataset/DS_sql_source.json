@@ -1,0 +1,12 @@
+{
+	"name": "DS_sql_source",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_sql_source",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "SqlServerTable",
+		"schema": []
+	}
+}
