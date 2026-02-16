@@ -82,9 +82,10 @@ jobs:
           dataFactoryName: adfprodnorthwind
           armTemplateFile: ARMTemplateForFactory.json
           armTemplateParametersFile: ARMTemplateParametersForFactory.json
+          additionalParameters: >
+            factoryName=adfprodnorthwind
+            LS_KeyVault_LS_properties_typeProperties_baseUrl=https://prodonpremisenorthwind.vault.azure.net/
+            LS_LS_adsl_sink_properties_typeProperties_url=https://adlsprodnorthwind.dfs.core.windows.net/
+            LS_LS_adsl_sink_properties_typeProperties_accountKey=${{ secrets.ADLS_PROD_ACCOUNT_KEY }}
+            LS_LS_sql_source_connectVia_referenceName=devOnpremiseSQL
 
-          # ✅ OVERRIDES para PROD (lo que en DEV apunta a DEV, acá se reemplaza a PROD)
-          #additionalParameters: >
-          #  factoryName=adfprodnorthwind
-          #  LS_adsl_prime_sink_DEV_properties_typeProperties_url=https://adlsprodprime.dfs.core.windows.net/
-          #  LS_adsl_prime_sink_DEV_accountKey=${{ secrets.ADLS_PROD_ACCOUNT_KEY }}
