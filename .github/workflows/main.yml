@@ -3,58 +3,69 @@ name: azure-adf-cicd-northwind
 on:
   push:
     branches:
-      - main
+      - main        # 🚀 Se ejecuta cuando haces merge/push a main (camino a PROD)
+
+  # Opcional: ejecución manual desde GitHub Actions
+  # workflow_dispatch:
 
 permissions:
-  id-token: write
-  contents: read
+  id-token: write   # 🔐 Necesario para autenticación OIDC (credenciales federadas)
+  contents: read    # 📄 Permite leer el contenido del repo
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # 1️⃣ Trae el código del repositorio (ADF JSON + build/)
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # 2️⃣ Prepara Node.js para ejecutar las utilities de ADF
       - name: Setup Node.js environment
         uses: actions/setup-node@v3
         with:
           node-version: 18.x
 
+      # 3️⃣ Instala dependencias del build (azure-data-factory-utilities)
       - name: Install ADF Utilities package
         run: npm install
-        working-directory: ${{ github.workspace }}/built/adf_package
+        working-directory: ${{ github.workspace }}/build
 
+      # 4️⃣ Valida el ADF DEV (verifica JSON, pipelines, linked services, etc.)
       - name: Validate ADF DEV resources
         run: >
           npm run build validate
           ${{ github.workspace }}/
           /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/GR-DEV-NORTHWIND/providers/Microsoft.DataFactory/factories/adfdevanorthwind
-        working-directory: ${{ github.workspace }}/built/adf_package
+        working-directory: ${{ github.workspace }}/build
 
+      # 5️⃣ Exporta ARM templates desde ADF DEV
       - name: Export ARM template from ADF DEV
         run: >
           npm run build export
           ${{ github.workspace }}/
           /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/GR-DEV-NORTHWIND/providers/Microsoft.DataFactory/factories/adfdevanorthwind
           ExportedArmTemplate
-        working-directory: ${{ github.workspace }}/built/adf_package
+        working-directory: ${{ github.workspace }}/build
 
+      # 6️⃣ Publica los ARM templates como artifact para el job de release
       - name: Upload ARM template artifact
         uses: actions/upload-artifact@v4
         with:
           name: ExportedArmTemplate
-          path: ${{ github.workspace }}/built/adf_package/ExportedArmTemplate
+          path: ${{ github.workspace }}/build/ExportedArmTemplate
 
   release:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      # 7️⃣ Descarga el artifact generado en el job build
       - name: Download ARM template artifact
         uses: actions/download-artifact@v4
         with:
           name: ExportedArmTemplate
 
+      # 8️⃣ Login a Azure usando OIDC (App Registration + credenciales federadas)
       - name: Azure login (OIDC)
         uses: azure/login@v1
         with:
@@ -63,6 +74,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           enable-AzPSSession: true
 
+      # 9️⃣ Deploy del ARM hacia ADF PROD
       - name: Deploy ARM to ADF PROD
         uses: Azure/data-factory-deploy-action@v1.2.0
         with:
@@ -70,6 +82,7 @@ jobs:
           dataFactoryName: adfprodnorthwind
           armTemplateFile: ARMTemplateForFactory.json
           armTemplateParametersFile: ARMTemplateParametersForFactory.json
+
           # ✅ OVERRIDES para PROD (lo que en DEV apunta a DEV, acá se reemplaza a PROD)
           #additionalParameters: >
           #  factoryName=adfprodnorthwind
