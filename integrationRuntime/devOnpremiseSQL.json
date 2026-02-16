@@ -1,0 +1,6 @@
+{
+	"name": "devOnpremiseSQL",
+	"properties": {
+		"type": "SelfHosted"
+	}
+}
