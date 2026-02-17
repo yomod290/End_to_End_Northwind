@@ -85,6 +85,6 @@ jobs:
           additionalParameters: >
               factoryName=adfprodnorthwind
               KeyVault_LS_properties_typeProperties_baseUrl=https://prodonpremisenorthwind.vault.azure.net/
-              LS_adsl_sink_properties_typeProperties_url=https://adlsprodnorthwind.dfs.core.windows.net/
+              LS_adsl_sink_properties_typeProperties_url=https://adslprodnorthwind.dfs.core.windows.net/
               LS_adsl_sink_accountKey=${{ secrets.ADLS_PROD_ACCOUNT_KEY }}
 
