@@ -15,26 +15,29 @@ jobs:
       DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
       DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
       REPO_PATH: /Repos/yd.montenegro.martinez@gmail.com/DEV-DATABRIKS-GIT-FOLDER
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Databricks CLI
         run: |
-          set -e
           curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
           databricks version
 
-      - name: Verify repo exists (DEV)
+      - name: Resolve repo_id (DEV)
         run: |
-          set -e
-          databricks repos list | head -n 50
-          databricks repos get --path "$REPO_PATH"
+          databricks repos list --output JSON > repos.json
+          cat repos.json
+          REPO_ID=$(cat repos.json | jq -r --arg P "$REPO_PATH" '.repos[] | select(.path==$P) | .id' | head -n 1)
+          echo "REPO_ID=$REPO_ID" >> $GITHUB_ENV
+          if [ -z "$REPO_ID" ] || [ "$REPO_ID" = "null" ]; then
+            echo "No encontré el repo en Databricks con path: $REPO_PATH"
+            exit 1
+          fi
 
       - name: Update Databricks Repo (DEV) to main
         run: |
-          set -e
-          databricks repos update --path "$REPO_PATH" --branch "main"
-          databricks repos get --path "$REPO_PATH"
+          databricks repos update "$REPO_ID" --branch main
 
   deploy-prod:
     needs: deploy-dev
@@ -43,22 +46,26 @@ jobs:
       DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_PROD }}
       DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_PROD }}
       REPO_PATH: /Repos/yd.montenegro.martinez@gmail.com/PROD-DATABRIKS-GIT-FOLDER
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Databricks CLI
         run: |
-          set -e
           curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
           databricks version
 
-      - name: Verify repo exists (PROD)
+      - name: Resolve repo_id (PROD)
         run: |
-          set -e
-          databricks repos get --path "$REPO_PATH"
+          databricks repos list --output JSON > repos.json
+          cat repos.json
+          REPO_ID=$(cat repos.json | jq -r --arg P "$REPO_PATH" '.repos[] | select(.path==$P) | .id' | head -n 1)
+          echo "REPO_ID=$REPO_ID" >> $GITHUB_ENV
+          if [ -z "$REPO_ID" ] || [ "$REPO_ID" = "null" ]; then
+            echo "No encontré el repo en Databricks con path: $REPO_PATH"
+            exit 1
+          fi
 
       - name: Update Databricks Repo (PROD) to main
         run: |
-          set -e
-          databricks repos update --path "$REPO_PATH" --branch "main"
-          databricks repos get --path "$REPO_PATH"
+          databricks repos update "$REPO_ID" --branch main
