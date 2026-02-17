@@ -2,34 +2,39 @@ name: databricks-cicd-northwind
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-
   deploy-dev:
     runs-on: ubuntu-latest
     env:
       DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
       DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
       REPO_PATH: /Repos/yd.montenegro.martinez@gmail.com/DEV-DATABRIKS-GIT-FOLDER
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Databricks CLI
         run: |
+          set -e
           curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
           databricks version
 
-      - name: Update Databricks Repo (DEV)
+      - name: Verify repo exists (DEV)
         run: |
-          databricks repos update "$REPO_PATH" --branch "main"
+          set -e
+          databricks repos list | head -n 50
+          databricks repos get --path "$REPO_PATH"
+
+      - name: Update Databricks Repo (DEV) to main
+        run: |
+          set -e
+          databricks repos update --path "$REPO_PATH" --branch "main"
+          databricks repos get --path "$REPO_PATH"
 
   deploy-prod:
     needs: deploy-dev
@@ -38,16 +43,22 @@ jobs:
       DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_PROD }}
       DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_PROD }}
       REPO_PATH: /Repos/yd.montenegro.martinez@gmail.com/PROD-DATABRIKS-GIT-FOLDER
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Databricks CLI
         run: |
+          set -e
           curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
           databricks version
 
-      - name: Update Databricks Repo (PROD)
+      - name: Verify repo exists (PROD)
         run: |
-          databricks repos update "$REPO_PATH" --branch "main"
+          set -e
+          databricks repos get --path "$REPO_PATH"
+
+      - name: Update Databricks Repo (PROD) to main
+        run: |
+          set -e
+          databricks repos update --path "$REPO_PATH" --branch "main"
+          databricks repos get --path "$REPO_PATH"
