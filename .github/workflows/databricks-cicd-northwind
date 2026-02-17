@@ -16,7 +16,7 @@ jobs:
     env:
       DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
       DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
-      REPO_PATH: /Workspace/Users/yd.montenegro.martinez@gmail.com/DEV-DATABRICKS-NORTHWIND
+      REPO_PATH: /Workspace/Users/yd.montenegro.martinez@gmail.com/DEV-DATABRIKS-GIT-FOLDER
 
     steps:
       - name: Checkout repository
@@ -37,7 +37,7 @@ jobs:
     env:
       DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_PROD }}
       DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_PROD }}
-      REPO_PATH: /Workspace/Users/yd.montenegro.martinez@gmail.com/PROD-DATABRICKS-NORTHWIND
+      REPO_PATH: /Workspace/Users/yd.montenegro.martinez@gmail.com/PROD-DATABRIKS-GIT-FOLDER
 
     steps:
       - name: Checkout repository
