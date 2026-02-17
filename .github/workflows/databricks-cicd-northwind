@@ -1,0 +1,53 @@
+name: databricks-cicd-northwind
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+
+  deploy-dev:
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
+      REPO_PATH: /Workspace/Users/yd.montenegro.martinez@gmail.com/DEV-DATABRICKS-NORTHWIND
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+          databricks version
+
+      - name: Update Databricks Repo (DEV)
+        run: |
+          databricks repos update "$REPO_PATH" --branch "main"
+
+  deploy-prod:
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_PROD }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_PROD }}
+      REPO_PATH: /Workspace/Users/yd.montenegro.martinez@gmail.com/PROD-DATABRICKS-NORTHWIND
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+          databricks version
+
+      - name: Update Databricks Repo (PROD)
+        run: |
+          databricks repos update "$REPO_PATH" --branch "main"
