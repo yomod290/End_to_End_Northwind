@@ -1,0 +1,17 @@
+{
+	"name": "Script_Test",
+	"properties": {
+		"content": {
+			"query": "print(\"Hola Mundo\")",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "master",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
