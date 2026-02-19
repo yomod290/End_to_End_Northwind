@@ -30,7 +30,7 @@ jobs:
         with:
           ref: ${{ inputs.sourceBranch }}
 
-      - name: Azure Login (OIDC)
+      - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -48,7 +48,7 @@ jobs:
           else
             echo "WORKSPACE=prodsynapsenorthwind" >> $GITHUB_OUTPUT
             echo "RG=GR-PROD-NORTHWIND" >> $GITHUB_OUTPUT
-            # carpeta donde Synapse publica los ARM templates en workspace_publish (normalmente el nombre del DEV)
+            # OJO: la carpeta sigue siendo la del workspace DEV porque ahí está la plantilla publicada
             echo "FOLDER=devsynapsenorthwind" >> $GITHUB_OUTPUT
           fi
 
@@ -56,8 +56,13 @@ jobs:
         uses: Azure/Synapse-workspace-deployment@V1.9.1
         with:
           TargetWorkspaceName: ${{ steps.vars.outputs.WORKSPACE }}
-          resourceGroupName: ${{ steps.vars.outputs.RG }}
-          TemplateFile: ${{ steps.vars.outputs.FOLDER }}/TemplateForWorkspace.json
-          ParametersFile: ${{ steps.vars.outputs.FOLDER }}/TemplateParametersForWorkspace.json
+          TemplateFile: ./${{ steps.vars.outputs.FOLDER }}/TemplateForWorkspace.json
+          ParametersFile: ./${{ steps.vars.outputs.FOLDER }}/TemplateParametersForWorkspace.json
+
+          # ✅ VALOR CORRECTO (case-sensitive)
+          Environment: Azure
+
+          # ✅ INPUT CORRECTO (NO es resourceGroupName)
+          resourceGroup: ${{ steps.vars.outputs.RG }}
+
           operation: deploy
-          FailOnMissingOverrides: false
