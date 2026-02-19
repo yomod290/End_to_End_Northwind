@@ -8,61 +8,58 @@ on:
         required: true
         default: "prod"
         type: choice
-        options:
-          - dev
-          - prod
+        options: [dev, prod]
       sourceBranch:
         description: "Rama fuente (artefactos publicados)"
         required: true
         default: "workspace_publish"
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
-  deploy-synapse:
+  deploy_synapse:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout (artefactos publicados)
+      # 1) Traer los artefactos publicados (TemplateForWorkspace.json)
+      - name: Checkout publish artifacts
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.sourceBranch }}
 
-      - name: Azure login (OIDC)
+      # 2) Login Azure (más simple que OIDC): AZURE_CREDENTIALS
+      - name: Azure Login (SPN JSON)
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      # 3) Variables por entorno
       - name: Set variables by ENV
         id: vars
         shell: bash
         run: |
           if [ "${{ inputs.env }}" = "dev" ]; then
-            echo "WORKSPACE=devsynapsenorthwind" >> $GITHUB_OUTPUT
             echo "RG=GR-DEV-NORTHWIND" >> $GITHUB_OUTPUT
+            echo "WORKSPACE=devsynapsenorthwind" >> $GITHUB_OUTPUT
             echo "FOLDER=devsynapsenorthwind" >> $GITHUB_OUTPUT
+            echo "ADLS_URL=https://adlsdevnorthwind.dfs.core.windows.net" >> $GITHUB_OUTPUT
           else
-            echo "WORKSPACE=prodsynapsenorthwind" >> $GITHUB_OUTPUT
             echo "RG=GR-PROD-NORTHWIND" >> $GITHUB_OUTPUT
-            # OJO: la carpeta sigue siendo la del workspace DEV porque ahí está la plantilla publicada
+            echo "WORKSPACE=prodsynapsenorthwind" >> $GITHUB_OUTPUT
+            # OJO: aunque despliegues a PROD, el folder del template suele seguir llamándose como el workspace DEV
             echo "FOLDER=devsynapsenorthwind" >> $GITHUB_OUTPUT
+            echo "ADLS_URL=https://adlsprodnorthwind.dfs.core.windows.net" >> $GITHUB_OUTPUT
           fi
 
-      - name: Deploy Synapse Workspace Artifacts
-        uses: Azure/Synapse-workspace-deployment@V1.9.1
+      # 4) Deploy ARM template (Synapse publish template)
+      - name: Deploy Synapse TemplateForWorkspace.json
+        uses: azure/arm-deploy@v2
         with:
-          TargetWorkspaceName: ${{ steps.vars.outputs.WORKSPACE }}
-          TemplateFile: ./${{ steps.vars.outputs.FOLDER }}/TemplateForWorkspace.json
-          ParametersFile: ./${{ steps.vars.outputs.FOLDER }}/TemplateParametersForWorkspace.json
-
-          # ✅ VALOR CORRECTO (case-sensitive)
-          Environment: Azure
-
-          # ✅ INPUT CORRECTO (NO es resourceGroupName)
-          resourceGroup: ${{ steps.vars.outputs.RG }}
-
-          operation: deploy
+          scope: resourcegroup
+          resourceGroupName: ${{ steps.vars.outputs.RG }}
+          template: ./${{ steps.vars.outputs.FOLDER }}/TemplateForWorkspace.json
+          parameters: ./${{ steps.vars.outputs.FOLDER }}/TemplateParametersForWorkspace.json
+          deploymentName: synapse-${{ inputs.env }}-${{ github.run_number }}
+          # IMPORTANT: overrides via additionalArguments, NO uses overrideParameters aquí
+          additionalArguments: >
+            --parameters workspaceName=${{ steps.vars.outputs.WORKSPACE }}
+            --parameters ${{ steps.vars.outputs.FOLDER }}-WorkspaceDefaultStorage_properties_typeProperties_url=${{ steps.vars.outputs.ADLS_URL }}
+            --parameters ${{ steps.vars.outputs.FOLDER }}-WorkspaceDefaultSqlServer_connectionString=Integrated%20Security=False;Encrypt=True;Connection%20Timeout=30;Data%20Source=tcp:${{ steps.vars.outputs.WORKSPACE }}.sql.azuresynapse.net,1433;Initial%20Catalog=master
