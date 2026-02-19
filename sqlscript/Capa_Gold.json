@@ -1,13 +1,13 @@
 {
-	"name": "Script_Test",
+	"name": "Capa_Gold",
 	"properties": {
 		"content": {
-			"query": "print(\"Hola Mundo_2..00.0.0\")",
+			"query": "IF DB_ID('northwind') IS NULL\nBEGIN\n    CREATE DATABASE northwind;\nEND\n\n\n\nUSE northwind;\n\n--Crear Schema Gold\nIF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'gold')\nBEGIN\n    EXEC('CREATE SCHEMA gold');\nEND\n\n\n\n--Crear External Data Source\nIF EXISTS (SELECT * FROM sys.external_data_sources WHERE name = 'NorthwindDataLake')\nBEGIN\n    DROP EXTERNAL DATA SOURCE NorthwindDataLake;\nEND;\n\nCREATE EXTERNAL DATA SOURCE NorthwindDataLake\nWITH (\n    LOCATION = 'https://adslprodnorthwind.dfs.core.windows.net/silver/'\n);\n\n--Crear View para ORder details\nCREATE OR ALTER VIEW gold.gold_order_details\nAS\nSELECT\n    rows.OrderID,\n    rows.ProductID,\n    CAST(rows.UnitPrice AS FLOAT) AS UnitPrice,\n    CAST(rows.Quantity AS INT) AS Quantity,\n    CAST(rows.Discount AS FLOAT) AS Discount,\n    rows.Total\nFROM OPENROWSET(\n        BULK 'order_details/',\n        DATA_SOURCE = 'NorthwindDataLake',\n        FORMAT = 'DELTA'\n) AS rows;\n\n\nSELECT TOP 20 * FROM gold.gold_order_details;\n\n\n\n\n--Customers\nCREATE OR ALTER VIEW gold.gold_customers\nAS\nSELECT *\nFROM OPENROWSET(\n        BULK 'customers/',\n        DATA_SOURCE = 'NorthwindDataLake',\n        FORMAT = 'DELTA'\n) AS rows;\n\nSELECT TOP 20 * FROM gold.gold_customers;\n\n-- 3.2 Employees\nCREATE OR ALTER VIEW gold.gold_employees\nAS\nSELECT *\nFROM OPENROWSET(\n        BULK 'employees/',\n        DATA_SOURCE = 'NorthwindDataLake',\n        FORMAT = 'DELTA'\n) AS rows;\n\nSELECT TOP 20 * FROM gold.gold_employees;\n\n-- 3.3 Orders\nCREATE OR ALTER VIEW gold.gold_orders\nAS\nSELECT *\nFROM OPENROWSET(\n        BULK 'orders/',\n        DATA_SOURCE = 'NorthwindDataLake',\n        FORMAT = 'DELTA'\n) AS rows;\n\nSELECT TOP 20 * FROM gold.gold_orders;\n\n-- 3.4 Products\nCREATE OR ALTER VIEW gold.gold_products\nAS\nSELECT *\nFROM OPENROWSET(\n        BULK 'products/',\n        DATA_SOURCE = 'NorthwindDataLake',\n        FORMAT = 'DELTA'\n) AS rows;\n\nSELECT TOP 20 * FROM gold.gold_products;\n\n\n\n\n\n",
 			"metadata": {
 				"language": "sql"
 			},
 			"currentConnection": {
-				"databaseName": "master",
+				"databaseName": "northwind",
 				"poolName": "Built-in"
 			},
 			"resultLimit": 5000
