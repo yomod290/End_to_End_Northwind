@@ -1,0 +1,33 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"workspaceName": {
+			"value": "devsynapsenorthwind"
+		},
+		"LS_adsl_sink_accountKey": {
+			"value": ""
+		},
+		"devsynapsenorthwind-WorkspaceDefaultSqlServer_connectionString": {
+			"value": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:devsynapsenorthwind.sql.azuresynapse.net,1433;Initial Catalog=@{linkedService().DBName}"
+		},
+		"KeyVault_LS_properties_typeProperties_baseUrl": {
+			"value": "https://devonpremisenorthwind.vault.azure.net/"
+		},
+		"LS_adsl_sink_properties_typeProperties_url": {
+			"value": "https://adsldevnorthwind.dfs.core.windows.net/"
+		},
+		"LS_sql_source_properties_typeProperties_server": {
+			"value": "WIN-LB6LIL0FQ67,1433"
+		},
+		"LS_sql_source_properties_typeProperties_database": {
+			"value": "NORTHWND"
+		},
+		"LS_sql_source_properties_typeProperties_userName": {
+			"value": "onpremnorthwind"
+		},
+		"devsynapsenorthwind-WorkspaceDefaultStorage_properties_typeProperties_url": {
+			"value": "https://adsldevnorthwind.dfs.core.windows.net"
+		}
+	}
+}
