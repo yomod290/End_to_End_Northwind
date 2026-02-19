@@ -1,9 +1,11 @@
 name: synapse-cicd-northwind
 
 on:
-  push:
-    branches: ["workspace_publish"]
   workflow_dispatch:
+  # Si luego quieres automático, descomenta esto PERO recuerda:
+  # el YAML también debe existir en la rama workspace_publish
+  # push:
+  #   branches: ["workspace_publish"]
 
 permissions:
   id-token: write
@@ -15,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout workspace_publish
+      - name: Checkout workspace_publish (Synapse publish artifacts)
         uses: actions/checkout@v4
         with:
           ref: workspace_publish
@@ -27,17 +29,21 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # Despliegue a PROD usando lo publicado desde DEV
       - name: Deploy to Synapse PROD
         uses: Azure/Synapse-workspace-deployment@V1.9.1
         with:
-          TargetWorkspaceName: "prodsynapsenorthwind"
-          TemplateFile: "./devsynapsenorthwind/TemplateForWorkspace.json"
-          ParametersFile: "./devsynapsenorthwind/TemplateParametersForWorkspace.json"
-          resourceGroupName: "GR-PROD-NORTHWIND"
-          managedIdentity: "true"
+          TargetWorkspaceName: prodsynapsenorthwind
+          TemplateFile: devsynapsenorthwind/TemplateForWorkspace.json
+          ParametersFile: devsynapsenorthwind/TemplateParametersForWorkspace.json
 
-          # ✅ Overrides (esto es lo importante)
+          # ✅ OJO: el input correcto es resourceGroup (NO resourceGroupName)
+          resourceGroup: GR-PROD-NORTHWIND
+
+          # (Opcional pero recomendado)
+          operation: deploy
+          DeleteArtifactsNotInTemplate: false
+
+          # ✅ Overrides: deben matchear EXACTO los nombres del TemplateParametersForWorkspace.json
           OverrideArmParameters: >
             -workspaceName prodsynapsenorthwind
             -KeyVault_LS_properties_typeProperties_baseUrl https://prodonpremisenorthwind.vault.azure.net/
