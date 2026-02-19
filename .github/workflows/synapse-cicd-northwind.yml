@@ -52,8 +52,6 @@ jobs:
           additionalArguments: >
             --parameters
             workspaceName=prodsynapsenorthwind
-            # Si con workspaceName no funciona, comenta la línea de arriba y usa esta:
-            # devsynapsenorthwind-WorkspaceName=prodsynapsenorthwind
 
       # Si falla, muestra el error real del deployment (MUY útil)
       - name: Show ARM error details
