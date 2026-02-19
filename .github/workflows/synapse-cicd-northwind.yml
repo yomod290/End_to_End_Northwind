@@ -2,24 +2,19 @@ name: synapse-cicd-northwind-arm
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - workspace_publish
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  deploy_synapse_prod:
-    name: Deploy Synapse to PROD (ARM + OIDC)
+  deploy_synapse_workspace_prod:
+    name: Deploy minimal Synapse workspace (PROD)
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout workspace_publish (Synapse publish artifacts)
+      - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          ref: workspace_publish
 
       - name: Azure Login (OIDC)
         uses: azure/login@v2
@@ -28,37 +23,18 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy Synapse ARM to PROD
+      - name: Deploy Synapse Workspace only (ARM)
         uses: azure/arm-deploy@v2
         with:
           scope: resourcegroup
           resourceGroupName: GR-PROD-NORTHWIND
-          deploymentName: synapse-prod-deploy
-          template: devsynapsenorthwind/TemplateForWorkspace.json
-          parameters: devsynapsenorthwind/TemplateParametersForWorkspace.json
+          deploymentName: synapse-minimal-workspace-prod
+          template: synapse/minimal-workspace.json
           additionalArguments: >
             --parameters
             workspaceName=prodsynapsenorthwind
-            LS_adsl_sink_properties_typeProperties_url=https://adlsprodnorthwind.dfs.core.windows.net/
-            devsynapsenorthwind-WorkspaceDefaultStorage_properties_typeProperties_url=https://adlsprodnorthwind.dfs.core.windows.net
-            KeyVault_LS_properties_typeProperties_baseUrl=https://prodonpremisenorthwind.vault.azure.net/
-            devsynapsenorthwind-WorkspaceDefaultSqlServer_connectionString="Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:prodsynapsenorthwind.sql.azuresynapse.net,1433;Initial Catalog=master"
-
-      # ✅ SOLO para ver el error real cuando falle
-      - name: Show ARM error details
-        if: failure()
-        uses: azure/CLI@v2
-        with:
-          inlineScript: |
-            echo "---- DEPLOYMENT ERROR ----"
-            az deployment group show \
-              --resource-group GR-PROD-NORTHWIND \
-              --name synapse-prod-deploy \
-              --query "properties.error" -o json
-
-            echo "---- OPERATIONS (first 50) ----"
-            az deployment operation group list \
-              --resource-group GR-PROD-NORTHWIND \
-              --name synapse-prod-deploy \
-              --query "[0:50].{state:properties.provisioningState, code:properties.statusMessage.error.code, message:properties.statusMessage.error.message, target:properties.targetResource.resourceName}" \
-              -o table
+            location=brazilsouth
+            defaultDataLakeStorageAccountUrl=https://adlsprodnorthwind.dfs.core.windows.net
+            defaultDataLakeFilesystem=silver
+            sqlAdministratorLogin=${{ secrets.SYNAPSE_SQL_ADMIN_USER }}
+            sqlAdministratorLoginPassword=${{ secrets.SYNAPSE_SQL_ADMIN_PASSWORD }}
