@@ -1,43 +1,47 @@
-name: synapse-cicd-northwind
+name: synapse-cicd-northwind-arm
 
 on:
-  workflow_dispatch:
   push:
     branches:
-      - workspace_publish
+      - main
+  workflow_dispatch:
 
 permissions:
+  id-token: write
   contents: read
 
 jobs:
   deploy_synapse_prod:
-    name: Deploy Synapse to PROD
+    name: Deploy Synapse to PROD (ARM + OIDC)
     runs-on: ubuntu-latest
 
     steps:
+      # 1) Trae los templates desde workspace_publish
       - name: Checkout workspace_publish (Synapse publish artifacts)
         uses: actions/checkout@v4
         with:
           ref: workspace_publish
 
-      - name: Azure Login (Service Principal Secret)
+      # 2) Login con OIDC (misma forma que tu ADF)
+      - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy Synapse workspace to PROD
-        uses: Azure/Synapse-workspace-deployment@V1.9.1
+      # 3) Deploy ARM al Resource Group PROD
+      - name: Deploy Synapse ARM to PROD
+        uses: azure/arm-deploy@v2
         with:
-          TargetWorkspaceName: prodsynapsenorthwind
-          resourceGroup: GR-PROD-NORTHWIND
-          TemplateFile: devsynapsenorthwind/TemplateForWorkspace.json
-          ParametersFile: devsynapsenorthwind/TemplateParametersForWorkspace.json
-          OverrideArmParameters: >
-            -workspaceName "prodsynapsenorthwind"
-            -LS_adsl_sink_properties_typeProperties_url "https://adlsprodnorthwind.dfs.core.windows.net/"
-            -devsynapsenorthwind-WorkspaceDefaultStorage_properties_typeProperties_url "https://adlsprodnorthwind.dfs.core.windows.net"
-            -KeyVault_LS_properties_typeProperties_baseUrl "https://prodonpremisenorthwind.vault.azure.net/"
-            -devsynapsenorthwind-WorkspaceDefaultSqlServer_connectionString "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:prodsynapsenorthwind.sql.azuresynapse.net,1433;Initial Catalog=master"
-          Environment: Azure Public
-          operation: deploy
-          FailOnMissingOverrides: false
+          scope: resourcegroup
+          resourceGroupName: GR-PROD-NORTHWIND
+          deploymentName: synapse-prod-deploy
+          template: devsynapsenorthwind/TemplateForWorkspace.json
+          parameters: devsynapsenorthwind/TemplateParametersForWorkspace.json
+          overrideParameters: >
+            workspaceName=prodsynapsenorthwind
+            LS_adsl_sink_properties_typeProperties_url=https://adlsprodnorthwind.dfs.core.windows.net/
+            devsynapsenorthwind-WorkspaceDefaultStorage_properties_typeProperties_url=https://adlsprodnorthwind.dfs.core.windows.net
+            KeyVault_LS_properties_typeProperties_baseUrl=https://prodonpremisenorthwind.vault.azure.net/
+            devsynapsenorthwind-WorkspaceDefaultSqlServer_connectionString=Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:prodsynapsenorthwind.sql.azuresynapse.net,1433;Initial Catalog=master
