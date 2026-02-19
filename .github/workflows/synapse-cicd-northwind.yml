@@ -1,18 +1,17 @@
 name: synapse-cicd-northwind
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - workspace_publish
+    branches: ["workspace_publish"]
+  workflow_dispatch:
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  deploy_sqlscripts_prod:
-    name: Deploy Synapse SQL Scripts to PROD
+  deploy-prod:
+    name: Deploy Synapse to PROD
     runs-on: ubuntu-latest
 
     steps:
@@ -28,46 +27,19 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy SQL Scripts only (sqlscript/*.json)
-        uses: azure/CLI@v2
+      # Despliegue a PROD usando lo publicado desde DEV
+      - name: Deploy to Synapse PROD
+        uses: Azure/synapse-workspace-deployment@v1.7.0
         with:
-          inlineScript: |
-            set -e
+          TargetWorkspaceName: "prodsynapsenorthwind"
+          TemplateFile: "./devsynapsenorthwind/TemplateForWorkspace.json"
+          ParametersFile: "./devsynapsenorthwind/TemplateParametersForWorkspace.json"
+          resourceGroupName: "GR-PROD-NORTHWIND"
+          managedIdentity: "true"
 
-            WORKSPACE="prodsynapsenorthwind"
-            API_VERSION="2020-12-01"
-
-            if [ ! -d "sqlscript" ]; then
-              echo "❌ No existe la carpeta 'sqlscript/' en el branch workspace_publish."
-              echo "Tip: En Synapse Studio, Publish y verifica que se generen artefactos en workspace_publish."
-              exit 1
-            fi
-
-            echo "✅ Scripts encontrados en ./sqlscript:"
-            ls -la sqlscript
-
-            for f in sqlscript/*.json; do
-              [ -e "$f" ] || continue
-
-              SCRIPT_NAME=$(python - <<'PY'
-              import json,sys,os
-              p=sys.argv[1]
-              with open(p,'r',encoding='utf-8') as fh:
-                j=json.load(fh)
-              name=j.get("name") or os.path.splitext(os.path.basename(p))[0]
-              print(name)
-              PY
-              "$f")
-
-              echo "➡️ Deploying SQL script: $SCRIPT_NAME"
-
-              az rest \
-                --method put \
-                --uri "https://${WORKSPACE}.dev.azuresynapse.net/sqlscripts/${SCRIPT_NAME}?api-version=${API_VERSION}" \
-                --headers "Content-Type=application/json" \
-                --body @"$f" \
-                --only-show-errors
-
-            done
-
-            echo "🎉 Listo: SQL scripts desplegados a ${WORKSPACE}"
+          # ✅ Overrides (esto es lo importante)
+          OverrideArmParameters: >
+            -workspaceName prodsynapsenorthwind
+            -KeyVault_LS_properties_typeProperties_baseUrl https://prodonpremisenorthwind.vault.azure.net/
+            -LS_adsl_sink_properties_typeProperties_url https://adslprodnorthwind.dfs.core.windows.net/
+            -devsynapsenorthwind-WorkspaceDefaultStorage_properties_typeProperties_url https://adslprodnorthwind.dfs.core.windows.net/
