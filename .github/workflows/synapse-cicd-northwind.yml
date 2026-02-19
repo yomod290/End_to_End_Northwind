@@ -1,4 +1,4 @@
-name: azure-synapse-cicd-northwind
+name: synapse-cicd-northwind-arm
 
 on:
   workflow_dispatch:
@@ -21,7 +21,7 @@ jobs:
         with:
           ref: workspace_publish
 
-      - name: Azure login (OIDC)
+      - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -43,3 +43,22 @@ jobs:
             devsynapsenorthwind-WorkspaceDefaultStorage_properties_typeProperties_url=https://adlsprodnorthwind.dfs.core.windows.net
             KeyVault_LS_properties_typeProperties_baseUrl=https://prodonpremisenorthwind.vault.azure.net/
             devsynapsenorthwind-WorkspaceDefaultSqlServer_connectionString="Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:prodsynapsenorthwind.sql.azuresynapse.net,1433;Initial Catalog=master"
+
+      # ✅ SOLO para ver el error real cuando falle
+      - name: Show ARM error details
+        if: failure()
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            echo "---- DEPLOYMENT ERROR ----"
+            az deployment group show \
+              --resource-group GR-PROD-NORTHWIND \
+              --name synapse-prod-deploy \
+              --query "properties.error" -o json
+
+            echo "---- OPERATIONS (first 50) ----"
+            az deployment operation group list \
+              --resource-group GR-PROD-NORTHWIND \
+              --name synapse-prod-deploy \
+              --query "[0:50].{state:properties.provisioningState, code:properties.statusMessage.error.code, message:properties.statusMessage.error.message, target:properties.targetResource.resourceName}" \
+              -o table
