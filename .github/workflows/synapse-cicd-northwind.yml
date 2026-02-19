@@ -16,6 +16,10 @@ on:
         required: true
         default: "workspace_publish"
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   deploy-synapse:
     runs-on: ubuntu-latest
@@ -26,8 +30,7 @@ jobs:
         with:
           ref: ${{ inputs.sourceBranch }}
 
-      # Login a Azure (SPN). Si usas OIDC dímelo y lo cambiamos.
-      - name: Azure Login
+      - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -45,16 +48,16 @@ jobs:
           else
             echo "WORKSPACE=prodsynapsenorthwind" >> $GITHUB_OUTPUT
             echo "RG=GR-PROD-NORTHWIND" >> $GITHUB_OUTPUT
+            # carpeta donde Synapse publica los ARM templates en workspace_publish (normalmente el nombre del DEV)
             echo "FOLDER=devsynapsenorthwind" >> $GITHUB_OUTPUT
           fi
 
-      # Deploy Synapse artifacts
       - name: Deploy Synapse Workspace Artifacts
-        uses: Azure/Synapse-workspace-deployment@V1.9.1
+        uses: Azure/Synapse-workspace-deployment@v1.9.1
         with:
           TargetWorkspaceName: ${{ steps.vars.outputs.WORKSPACE }}
-          TemplateFile: ./${{ steps.vars.outputs.FOLDER }}/TemplateForWorkspace.json
-          ParametersFile: ./${{ steps.vars.outputs.FOLDER }}/TemplateParametersForWorkspace.json
-          environment: "Azure Public"
-          resourceGroup: ${{ steps.vars.outputs.RG }}
-          operation: "deploy"
+          resourceGroupName: ${{ steps.vars.outputs.RG }}
+          TemplateFile: ${{ steps.vars.outputs.FOLDER }}/TemplateForWorkspace.json
+          ParametersFile: ${{ steps.vars.outputs.FOLDER }}/TemplateParametersForWorkspace.json
+          operation: deploy
+          FailOnMissingOverrides: false
