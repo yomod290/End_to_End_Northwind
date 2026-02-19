@@ -2,7 +2,7 @@ name: synapse-cicd-northwind
 
 on:
   push:
-    branches: - main
+    branches: ["workspace_publish"]
   workflow_dispatch:
 
 permissions:
