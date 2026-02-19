@@ -1,45 +1,60 @@
 name: synapse-cicd-northwind
 
 on:
-  push:
-    branches: ["workspace_publish"]
   workflow_dispatch:
-
-permissions:
-  id-token: write
-  contents: read
+    inputs:
+      env:
+        description: "Entorno destino"
+        required: true
+        default: "prod"
+        type: choice
+        options:
+          - dev
+          - prod
+      sourceBranch:
+        description: "Rama fuente (artefactos publicados)"
+        required: true
+        default: "workspace_publish"
 
 jobs:
-  deploy-prod:
-    name: Deploy Synapse to PROD
+  deploy-synapse:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout workspace_publish
+      - name: Checkout (artefactos publicados)
         uses: actions/checkout@v4
         with:
-          ref: workspace_publish
+          ref: ${{ inputs.sourceBranch }}
 
-      - name: Azure Login (OIDC)
+      # Login a Azure (SPN). Si usas OIDC dímelo y lo cambiamos.
+      - name: Azure Login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # Despliegue a PROD usando lo publicado desde DEV
-      - name: Deploy to Synapse PROD
-        uses: Azure/synapse-workspace-deployment@v1.7.0
-        with:
-          TargetWorkspaceName: "prodsynapsenorthwind"
-          TemplateFile: "./devsynapsenorthwind/TemplateForWorkspace.json"
-          ParametersFile: "./devsynapsenorthwind/TemplateParametersForWorkspace.json"
-          resourceGroupName: "GR-PROD-NORTHWIND"
-          managedIdentity: "true"
+      - name: Set variables by ENV
+        id: vars
+        shell: bash
+        run: |
+          if [ "${{ inputs.env }}" = "dev" ]; then
+            echo "WORKSPACE=devsynapsenorthwind" >> $GITHUB_OUTPUT
+            echo "RG=GR-DEV-NORTHWIND" >> $GITHUB_OUTPUT
+            echo "FOLDER=devsynapsenorthwind" >> $GITHUB_OUTPUT
+          else
+            echo "WORKSPACE=prodsynapsenorthwind" >> $GITHUB_OUTPUT
+            echo "RG=GR-PROD-NORTHWIND" >> $GITHUB_OUTPUT
+            echo "FOLDER=devsynapsenorthwind" >> $GITHUB_OUTPUT
+          fi
 
-          # ✅ Overrides (esto es lo importante)
-          OverrideArmParameters: >
-            -workspaceName prodsynapsenorthwind
-            -KeyVault_LS_properties_typeProperties_baseUrl https://prodonpremisenorthwind.vault.azure.net/
-            -LS_adsl_sink_properties_typeProperties_url https://adslprodnorthwind.dfs.core.windows.net/
-            -devsynapsenorthwind-WorkspaceDefaultStorage_properties_typeProperties_url https://adslprodnorthwind.dfs.core.windows.net/
+      # Deploy Synapse artifacts
+      - name: Deploy Synapse Workspace Artifacts
+        uses: Azure/Synapse-workspace-deployment@V1.9.1
+        with:
+          TargetWorkspaceName: ${{ steps.vars.outputs.WORKSPACE }}
+          TemplateFile: ./${{ steps.vars.outputs.FOLDER }}/TemplateForWorkspace.json
+          ParametersFile: ./${{ steps.vars.outputs.FOLDER }}/TemplateParametersForWorkspace.json
+          environment: "Azure Public"
+          resourceGroup: ${{ steps.vars.outputs.RG }}
+          operation: "deploy"
