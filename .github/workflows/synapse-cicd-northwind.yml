@@ -2,29 +2,18 @@ name: synapse-cicd-northwind
 
 on:
   workflow_dispatch:
-    inputs:
-      target:
-        description: "Ambiente destino"
-        required: true
-        default: "prod"
-        type: choice
-        options:
-          - prod
-  push:
-    branches:
-      - workspace_publish
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  deploy-synapse-to-prod:
+  deploy_synapse_prod:
     name: Deploy Synapse to PROD
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout workspace_publish (Synapse publish artifacts)
         uses: actions/checkout@v4
         with:
           ref: workspace_publish
@@ -36,18 +25,25 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # Deploy del workspace (ARM generado por Publish)
-      - name: Deploy Synapse Workspace
+      - name: Deploy Synapse workspace artifacts to PROD
         uses: Azure/Synapse-workspace-deployment@V1.9.1
         with:
+          # TARGET (PROD)
           TargetWorkspaceName: "prodsynapsenorthwind"
-          TemplateFile: "devsynapsenorthwind/TemplateForWorkspace.json"
-          ParametersFile: "devsynapsenorthwind/TemplateParametersForWorkspace.json"
           ResourceGroupName: "GR-PROD-NORTHWIND"
 
-          # Si necesitas sobreescribir valores DEV -> PROD (URLs, KV, etc)
-          # OJO: usa los nombres exactos que salen en TemplateParametersForWorkspace.json
-          OverrideArmParameters: |
+          # SOURCE templates (from workspace_publish branch)
+          TemplateFile: "devsynapsenorthwind/TemplateForWorkspace.json"
+          ParametersFile: "devsynapsenorthwind/TemplateParametersForWorkspace.json"
+
+          # IMPORTANT: override DEV params to PROD values
+          OverrideArmParameters: >
             -workspaceName "prodsynapsenorthwind"
+            -LS_adsl_sink_accountKey "${{ secrets.PROD_ADLS_ACCOUNT_KEY }}"
             -KeyVault_LS_properties_typeProperties_baseUrl "https://prodonpremisenorthwind.vault.azure.net/"
-            -LS_adsl_sink_properties_typeProperties_url "https://adlsprodnorthwind.dfs.core.windows.net/"
+            -LS_adsl_sink_properties_typeProperties_url "https://adslprodnorthwind.dfs.core.windows.net/"
+            -devsynapsenorthwind-WorkspaceDefaultStorage_properties_typeProperties_url "https://adslprodnorthwind.dfs.core.windows.net"
+            -devsynapsenorthwind-WorkspaceDefaultSqlServer_connectionString "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:prodsynapsenorthwind.sql.azuresynapse.net,1433;Initial Catalog=@{linkedService().DBName}"
+            -LS_sql_source_properties_typeProperties_server "WIN-LB6LIL0FQ67,1433"
+            -LS_sql_source_properties_typeProperties_database "NORTHWND"
+            -LS_sql_source_properties_typeProperties_userName "onpremnorthwind"
