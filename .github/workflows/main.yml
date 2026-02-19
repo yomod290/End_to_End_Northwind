@@ -1,90 +1,47 @@
-name: azure-adf-cicd-northwind
+name: azure-synapse-cicd-northwind
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - main        # 🚀 Se ejecuta cuando haces merge/push a main (camino a PROD)
-
-  # Opcional: ejecución manual desde GitHub Actions
-  # workflow_dispatch:
+      - workspace_publish
 
 permissions:
-  id-token: write   # 🔐 Necesario para autenticación OIDC (credenciales federadas)
-  contents: read    # 📄 Permite leer el contenido del repo
+  id-token: write
+  contents: read
 
 jobs:
-  build:
+  deploy_synapse_prod:
+    name: Deploy Synapse to PROD (ARM + OIDC)
     runs-on: ubuntu-latest
+
     steps:
-      # 1️⃣ Trae el código del repositorio (ADF JSON + build/)
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      # 2️⃣ Prepara Node.js para ejecutar las utilities de ADF
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v3
+      # 1) Checkout del branch workspace_publish (donde está TemplateForWorkspace.json)
+      - name: Checkout workspace_publish (Synapse publish artifacts)
+        uses: actions/checkout@v4
         with:
-          node-version: 18.x
+          ref: workspace_publish
 
-      # 3️⃣ Instala dependencias del build (azure-data-factory-utilities)
-      - name: Install ADF Utilities package
-        run: npm install
-        working-directory: ${{ github.workspace }}/build
-
-      # 4️⃣ Valida el ADF DEV (verifica JSON, pipelines, linked services, etc.)
-      - name: Validate ADF DEV resources
-        run: >
-          npm run build validate
-          ${{ github.workspace }}/
-          /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/GR-DEV-NORTHWIND/providers/Microsoft.DataFactory/factories/adfdevanorthwind
-        working-directory: ${{ github.workspace }}/build
-
-      # 5️⃣ Exporta ARM templates desde ADF DEV
-      - name: Export ARM template from ADF DEV
-        run: >
-          npm run build export
-          ${{ github.workspace }}/
-          /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/GR-DEV-NORTHWIND/providers/Microsoft.DataFactory/factories/adfdevanorthwind
-          ExportedArmTemplate
-        working-directory: ${{ github.workspace }}/build
-
-      # 6️⃣ Publica los ARM templates como artifact para el job de release
-      - name: Upload ARM template artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ExportedArmTemplate
-          path: ${{ github.workspace }}/build/ExportedArmTemplate
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      # 7️⃣ Descarga el artifact generado en el job build
-      - name: Download ARM template artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ExportedArmTemplate
-
-      # 8️⃣ Login a Azure usando OIDC (App Registration + credenciales federadas)
+      # 2) Login a Azure con OIDC (igual que tu ADF)
       - name: Azure login (OIDC)
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          enable-AzPSSession: true
 
-      # 9️⃣ Deploy del ARM hacia ADF PROD
-      - name: Deploy ARM to ADF PROD
-        uses: Azure/data-factory-deploy-action@v1.2.0
+      # 3) Deploy ARM template a tu Resource Group PROD
+      - name: Deploy Synapse ARM to PROD
+        uses: azure/arm-deploy@v2
         with:
+          scope: resourcegroup
           resourceGroupName: GR-PROD-NORTHWIND
-          dataFactoryName: adfprodnorthwind
-          armTemplateFile: ARMTemplateForFactory.json
-          armTemplateParametersFile: ARMTemplateParametersForFactory.json
-          additionalParameters: >
-              factoryName=adfprodnorthwind
-              KeyVault_LS_properties_typeProperties_baseUrl=https://prodonpremisenorthwind.vault.azure.net/
-              LS_adsl_sink_properties_typeProperties_url=https://adslprodnorthwind.dfs.core.windows.net/
-              LS_adsl_sink_accountKey=${{ secrets.ADLS_PROD_ACCOUNT_KEY }}
-
+          template: devsynapsenorthwind/TemplateForWorkspace.json
+          parameters: devsynapsenorthwind/TemplateParametersForWorkspace.json
+          # overrides tipo ADF (clave=valor). OJO: en arm-deploy se usa key=value (no -param "valor")
+          overrideParameters: >
+            workspaceName=prodsynapsenorthwind
+            LS_adsl_sink_properties_typeProperties_url=https://adlsprodnorthwind.dfs.core.windows.net/
+            devsynapsenorthwind-WorkspaceDefaultStorage_properties_typeProperties_url=https://adlsprodnorthwind.dfs.core.windows.net
+            KeyVault_LS_properties_typeProperties_baseUrl=https://prodonpremisenorthwind.vault.azure.net/
+            devsynapsenorthwind-WorkspaceDefaultSqlServer_connectionString=Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:prodsynapsenorthwind.sql.azuresynapse.net,1433;Initial Catalog=master
