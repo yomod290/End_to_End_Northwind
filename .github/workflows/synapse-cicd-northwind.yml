@@ -11,12 +11,12 @@ permissions:
   contents: read
 
 jobs:
-  deploy_sqlscripts_prod:
-    name: Deploy Synapse SQL Scripts to PROD
+  deploy_synapse_prod:
+    name: Deploy Synapse ARM to PROD
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout workspace_publish
+      - name: Checkout workspace_publish (Synapse publish artifacts)
         uses: actions/checkout@v4
         with:
           ref: workspace_publish
@@ -28,55 +28,48 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # Publica SOLO los sql scripts (json) al workspace PROD
-      - name: Deploy SQL Scripts (only)
+      # (Opcional) Verifica que los templates existan
+      - name: List templates folder
         uses: azure/CLI@v2
         with:
           inlineScript: |
-            set -e
+            echo "PWD=$(pwd)"
+            ls -la
+            echo "---- devsynapsenorthwind folder ----"
+            ls -la devsynapsenorthwind || true
+            echo "---- Template files ----"
+            ls -la devsynapsenorthwind/TemplateForWorkspace.json || true
+            ls -la devsynapsenorthwind/TemplateParametersForWorkspace.json || true
 
-            WORKSPACE="prodsynapsenorthwind"
-            API_VERSION="2020-12-01"
+      - name: Deploy Synapse ARM to PROD
+        uses: azure/arm-deploy@v2
+        with:
+          scope: resourcegroup
+          resourceGroupName: GR-PROD-NORTHWIND
+          deploymentName: synapse-prod-deploy
+          template: devsynapsenorthwind/TemplateForWorkspace.json
+          parameters: devsynapsenorthwind/TemplateParametersForWorkspace.json
+          additionalArguments: >
+            --parameters
+            workspaceName=prodsynapsenorthwind
+            # Si con workspaceName no funciona, comenta la línea de arriba y usa esta:
+            # devsynapsenorthwind-WorkspaceName=prodsynapsenorthwind
 
-            if [ ! -d "sqlscript" ]; then
-              echo "No existe la carpeta 'sqlscript/' en el branch workspace_publish."
-              echo "Revisa que tus SQL scripts estén publicados en Synapse y commiteados en workspace_publish."
-              exit 1
-            fi
+      # Si falla, muestra el error real del deployment (MUY útil)
+      - name: Show ARM error details
+        if: failure()
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            echo "---- DEPLOYMENT ERROR ----"
+            az deployment group show \
+              --resource-group GR-PROD-NORTHWIND \
+              --name synapse-prod-deploy \
+              --query "properties.error" -o json
 
-            echo "Encontrando SQL scripts en ./sqlscript ..."
-            ls -la sqlscript
-
-            for f in sqlscript/*.json; do
-              [ -e "$f" ] || continue
-
-              # Nombre del script: intenta leerlo del JSON, si no, usa el nombre del archivo
-              NAME_FROM_JSON=$(python - <<'PY'
-import json,sys
-p=sys.argv[1]
-with open(p,'r',encoding='utf-8') as fh:
-  j=json.load(fh)
-print(j.get("name",""))
-PY
-"$f")
-
-              if [ -z "$NAME_FROM_JSON" ]; then
-                BASENAME=$(basename "$f" .json)
-                SCRIPT_NAME="$BASENAME"
-              else
-                SCRIPT_NAME="$NAME_FROM_JSON"
-              fi
-
-              echo "Deploying SQL script: $SCRIPT_NAME (file: $f)"
-
-              # PUT create/update SQL script
-              az rest \
-                --method put \
-                --uri "https://${WORKSPACE}.dev.azuresynapse.net/sqlscripts/${SCRIPT_NAME}?api-version=${API_VERSION}" \
-                --headers "Content-Type=application/json" \
-                --body @"$f" \
-                --only-show-errors
-
-            done
-
-            echo "✅ Listo: SQL scripts desplegados a ${WORKSPACE}"
+            echo "---- OPERATIONS (first 50) ----"
+            az deployment operation group list \
+              --resource-group GR-PROD-NORTHWIND \
+              --name synapse-prod-deploy \
+              --query "[0:50].{state:properties.provisioningState, code:properties.statusMessage.error.code, message:properties.statusMessage.error.message, target:properties.targetResource.resourceName}" \
+              -o table
