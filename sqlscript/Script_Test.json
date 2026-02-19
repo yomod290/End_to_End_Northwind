@@ -2,7 +2,7 @@
 	"name": "Script_Test",
 	"properties": {
 		"content": {
-			"query": "print(\"Hola Mundo_2.0.0\")",
+			"query": "print(\"Hola Mundo_2.0.0.0\")",
 			"metadata": {
 				"language": "sql"
 			},
