@@ -1,10 +1,10 @@
-name: synapse-cicd-northwind-arm
+name: azure-synapse-cicd-northwind
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - main
-  workflow_dispatch:
+      - workspace_publish
 
 permissions:
   id-token: write
@@ -21,7 +21,7 @@ jobs:
         with:
           ref: workspace_publish
 
-      - name: Azure Login (OIDC)
+      - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
