@@ -15,6 +15,10 @@ jobs:
     name: Deploy Synapse to PROD
     runs-on: ubuntu-latest
 
+    # (Opcional) Si tienes configurado un "Environment" en GitHub llamado "prod"
+    # esto sirve para approvals y secrets por environment.
+    environment: prod
+
     steps:
       - name: Checkout workspace_publish (Synapse publish artifacts)
         uses: actions/checkout@v4
@@ -41,6 +45,6 @@ jobs:
             -devsynapsenorthwind-WorkspaceDefaultStorage_properties_typeProperties_url "https://adlsprodnorthwind.dfs.core.windows.net"
             -KeyVault_LS_properties_typeProperties_baseUrl "https://prodonpremisenorthwind.vault.azure.net/"
             -devsynapsenorthwind-WorkspaceDefaultSqlServer_connectionString "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:prodsynapsenorthwind.sql.azuresynapse.net,1433;Initial Catalog=master"
-          environment: "prod"
+          Environment: "Azure Public"
           operation: "deploy"
           FailOnMissingOverrides: false
