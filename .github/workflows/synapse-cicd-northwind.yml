@@ -1,20 +1,25 @@
-name: synapse-cicd-northwind-arm
+name: synapse-cicd-northwind
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - workspace_publish
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  deploy_synapse_workspace_prod:
-    name: Deploy minimal Synapse workspace (PROD)
+  deploy_sqlscripts_prod:
+    name: Deploy Synapse SQL Scripts to PROD
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout workspace_publish
         uses: actions/checkout@v4
+        with:
+          ref: workspace_publish
 
       - name: Azure Login (OIDC)
         uses: azure/login@v2
@@ -23,18 +28,55 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy Synapse Workspace only (ARM)
-        uses: azure/arm-deploy@v2
+      # Publica SOLO los sql scripts (json) al workspace PROD
+      - name: Deploy SQL Scripts (only)
+        uses: azure/CLI@v2
         with:
-          scope: resourcegroup
-          resourceGroupName: GR-PROD-NORTHWIND
-          deploymentName: synapse-minimal-workspace-prod
-          template: synapse/minimal-workspace.json
-          additionalArguments: >
-            --parameters
-            workspaceName=prodsynapsenorthwind
-            location=brazilsouth
-            defaultDataLakeStorageAccountUrl=https://adlsprodnorthwind.dfs.core.windows.net
-            defaultDataLakeFilesystem=silver
-            sqlAdministratorLogin=${{ secrets.SYNAPSE_SQL_ADMIN_USER }}
-            sqlAdministratorLoginPassword=${{ secrets.SYNAPSE_SQL_ADMIN_PASSWORD }}
+          inlineScript: |
+            set -e
+
+            WORKSPACE="prodsynapsenorthwind"
+            API_VERSION="2020-12-01"
+
+            if [ ! -d "sqlscript" ]; then
+              echo "No existe la carpeta 'sqlscript/' en el branch workspace_publish."
+              echo "Revisa que tus SQL scripts estén publicados en Synapse y commiteados en workspace_publish."
+              exit 1
+            fi
+
+            echo "Encontrando SQL scripts en ./sqlscript ..."
+            ls -la sqlscript
+
+            for f in sqlscript/*.json; do
+              [ -e "$f" ] || continue
+
+              # Nombre del script: intenta leerlo del JSON, si no, usa el nombre del archivo
+              NAME_FROM_JSON=$(python - <<'PY'
+import json,sys
+p=sys.argv[1]
+with open(p,'r',encoding='utf-8') as fh:
+  j=json.load(fh)
+print(j.get("name",""))
+PY
+"$f")
+
+              if [ -z "$NAME_FROM_JSON" ]; then
+                BASENAME=$(basename "$f" .json)
+                SCRIPT_NAME="$BASENAME"
+              else
+                SCRIPT_NAME="$NAME_FROM_JSON"
+              fi
+
+              echo "Deploying SQL script: $SCRIPT_NAME (file: $f)"
+
+              # PUT create/update SQL script
+              az rest \
+                --method put \
+                --uri "https://${WORKSPACE}.dev.azuresynapse.net/sqlscripts/${SCRIPT_NAME}?api-version=${API_VERSION}" \
+                --headers "Content-Type=application/json" \
+                --body @"$f" \
+                --only-show-errors
+
+            done
+
+            echo "✅ Listo: SQL scripts desplegados a ${WORKSPACE}"
