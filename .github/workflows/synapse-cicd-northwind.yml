@@ -53,7 +53,7 @@ jobs:
           fi
 
       - name: Deploy Synapse Workspace Artifacts
-        uses: Azure/Synapse-workspace-deployment@v1.9.1
+        uses: Azure/Synapse-workspace-deployment@V1.9.1
         with:
           TargetWorkspaceName: ${{ steps.vars.outputs.WORKSPACE }}
           resourceGroupName: ${{ steps.vars.outputs.RG }}
