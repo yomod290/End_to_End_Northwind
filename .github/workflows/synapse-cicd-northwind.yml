@@ -1,21 +1,30 @@
 name: synapse-cicd-northwind
 
 on:
-  push:
-    branches: ["workspace_publish"]
   workflow_dispatch:
+    inputs:
+      target:
+        description: "Ambiente destino"
+        required: true
+        default: "prod"
+        type: choice
+        options:
+          - prod
+  push:
+    branches:
+      - workspace_publish
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  deploy-prod:
+  deploy-synapse-to-prod:
     name: Deploy Synapse to PROD
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout workspace_publish
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           ref: workspace_publish
@@ -27,19 +36,18 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # Despliegue a PROD usando lo publicado desde DEV
-      - name: Deploy to Synapse PROD
+      # Deploy del workspace (ARM generado por Publish)
+      - name: Deploy Synapse Workspace
         uses: Azure/Synapse-workspace-deployment@V1.9.1
         with:
           TargetWorkspaceName: "prodsynapsenorthwind"
-          TemplateFile: "./devsynapsenorthwind/TemplateForWorkspace.json"
-          ParametersFile: "./devsynapsenorthwind/TemplateParametersForWorkspace.json"
-          resourceGroupName: "GR-PROD-NORTHWIND"
-          managedIdentity: "true"
+          TemplateFile: "devsynapsenorthwind/TemplateForWorkspace.json"
+          ParametersFile: "devsynapsenorthwind/TemplateParametersForWorkspace.json"
+          ResourceGroupName: "GR-PROD-NORTHWIND"
 
-          # ✅ Overrides (esto es lo importante)
-          OverrideArmParameters: >
-            -workspaceName prodsynapsenorthwind
-            -KeyVault_LS_properties_typeProperties_baseUrl https://prodonpremisenorthwind.vault.azure.net/
-            -LS_adsl_sink_properties_typeProperties_url https://adslprodnorthwind.dfs.core.windows.net/
-            -devsynapsenorthwind-WorkspaceDefaultStorage_properties_typeProperties_url https://adslprodnorthwind.dfs.core.windows.net/
+          # Si necesitas sobreescribir valores DEV -> PROD (URLs, KV, etc)
+          # OJO: usa los nombres exactos que salen en TemplateParametersForWorkspace.json
+          OverrideArmParameters: |
+            -workspaceName "prodsynapsenorthwind"
+            -KeyVault_LS_properties_typeProperties_baseUrl "https://prodonpremisenorthwind.vault.azure.net/"
+            -LS_adsl_sink_properties_typeProperties_url "https://adlsprodnorthwind.dfs.core.windows.net/"
