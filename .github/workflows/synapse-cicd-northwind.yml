@@ -2,17 +2,16 @@ name: synapse-cicd-northwind
 
 on:
   workflow_dispatch:
-  # Si luego quieres automático, descomenta esto PERO recuerda:
-  # el YAML también debe existir en la rama workspace_publish
-  # push:
-  #   branches: ["workspace_publish"]
+  push:
+    branches:
+      - workspace_publish
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  deploy-prod:
+  deploy_synapse_prod:
     name: Deploy Synapse to PROD
     runs-on: ubuntu-latest
 
@@ -29,23 +28,19 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy to Synapse PROD
+      - name: Deploy Synapse workspace to PROD
         uses: Azure/Synapse-workspace-deployment@V1.9.1
         with:
           TargetWorkspaceName: prodsynapsenorthwind
+          resourceGroup: GR-PROD-NORTHWIND
           TemplateFile: devsynapsenorthwind/TemplateForWorkspace.json
           ParametersFile: devsynapsenorthwind/TemplateParametersForWorkspace.json
-
-          # ✅ OJO: el input correcto es resourceGroup (NO resourceGroupName)
-          resourceGroup: GR-PROD-NORTHWIND
-
-          # (Opcional pero recomendado)
-          operation: deploy
-          DeleteArtifactsNotInTemplate: false
-
-          # ✅ Overrides: deben matchear EXACTO los nombres del TemplateParametersForWorkspace.json
           OverrideArmParameters: >
-            -workspaceName prodsynapsenorthwind
-            -KeyVault_LS_properties_typeProperties_baseUrl https://prodonpremisenorthwind.vault.azure.net/
-            -LS_adsl_sink_properties_typeProperties_url https://adslprodnorthwind.dfs.core.windows.net/
-            -devsynapsenorthwind-WorkspaceDefaultStorage_properties_typeProperties_url https://adslprodnorthwind.dfs.core.windows.net/
+            -workspaceName "prodsynapsenorthwind"
+            -LS_adsl_sink_properties_typeProperties_url "https://adlsprodnorthwind.dfs.core.windows.net/"
+            -devsynapsenorthwind-WorkspaceDefaultStorage_properties_typeProperties_url "https://adlsprodnorthwind.dfs.core.windows.net"
+            -KeyVault_LS_properties_typeProperties_baseUrl "https://prodonpremisenorthwind.vault.azure.net/"
+            -devsynapsenorthwind-WorkspaceDefaultSqlServer_connectionString "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:prodsynapsenorthwind.sql.azuresynapse.net,1433;Initial Catalog=master"
+          Environment: Azure Public
+          operation: deploy
+          FailOnMissingOverrides: false
