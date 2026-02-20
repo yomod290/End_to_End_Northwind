@@ -9,6 +9,8 @@
 
 
 # 🚀 Northwind – Azure Lakehouse (DEV/PROD) ETL End-to-End
+---
+<img width="1589" height="802" alt="image" src="https://github.com/user-attachments/assets/5e32face-4e37-44c2-9f1b-4420f20ec2af" />
 
 ## 📌 Descripción del Proyecto
 
@@ -221,9 +223,7 @@ Esto permite replicar una estructura empresarial real con separación controlada
 - Diseño de arquitectura empresarial en Azure.
 - Modelado analítico para BI.
 
----
 
-# 🏁 Conclusión
 ---
 
 👤 Autor
